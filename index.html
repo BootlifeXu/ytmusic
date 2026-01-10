@@ -103,6 +103,8 @@
 
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
+let currentResults = [];
+let currentIndex = -1;
 // ⭐ PASTE YOUR YOUTUBE API KEY HERE ⭐
 // Get your key from: https://console.cloud.google.com/apis/credentials
 // Make sure YouTube Data API v3 is enabled!
@@ -340,6 +342,8 @@ async function searchYouTubeMusic(query, pageToken=null) {
 }
 
 function displaySearchResults(tracks) {
+currentResults = tracks.slice(0, 10);
+currentIndex = -1;
     searchResultsList.innerHTML = '';
     if (!tracks || tracks.length === 0) {
         searchResultsList.innerHTML = '<li class="song-item">No music found</li>';
@@ -428,6 +432,8 @@ function onPlayerError(event) {
 // Play a track
 function playTrack(track) {
     debug('▶ Attempting to play: ' + track.title);
+    currentIndex = currentResults.findIndex(t => t.id === track.id);
+
     
     currentTrackId = track.id;
     songTitle.textContent = track.title;
@@ -506,6 +512,21 @@ function onPlayerStateChange(event) {
     } else {
         playPauseBtn.textContent = '▶';
     }
+  // 🎵 AUTO PLAY NEXT TRACK
+if (event.data === YT.PlayerState.ENDED) {
+    debug('🎶 Track ended');
+
+    if (currentIndex >= 0 && currentIndex < currentResults.length - 1) {
+        currentIndex++;
+        const nextTrack = currentResults[currentIndex];
+
+        debug('➡️ Auto-playing next: ' + nextTrack.title);
+        playTrack(nextTrack);
+    } else {
+        debug('🛑 Reached end of first 10 results. Stopping autoplay.');
+        updateStatus('Playlist finished', 'warning');
+    }
+}
 }
 
 // Progress bar
