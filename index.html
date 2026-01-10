@@ -282,49 +282,36 @@ function escapeHtml(text) {
 // YouTube Music search
 async function searchYouTubeMusic(query, pageToken=null) {
     try {
-        if (!testAPIKey()) {
-            return null;
-        }
-
         updateStatus('Searching...', 'warning');
         debug('🔍 Searching YouTube for: "' + query + '"');
-        
+
         const params = new URLSearchParams({
             part: 'snippet',
             q: query + ' music',
             type: 'video',
             videoCategoryId: '10',
-            maxResults: '10',
-            key: API_KEY
+            maxResults: '10'
         });
         if (pageToken) params.append('pageToken', pageToken);
 
-        const url = `https://www.googleapis.com/youtube/v3/search?${params}`;
-        debug('📡 Making API request to YouTube...');
-        
+        const url = `${workerUrl}/yt/v3/search?${params}`;
+        debug('📡 Making API request via Worker: ' + url);
+
         const response = await fetch(url);
         debug('📡 Response status: ' + response.status + ' ' + response.statusText);
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => null);
             if (errorData && errorData.error) {
                 debug('❌ API ERROR: ' + errorData.error.message, true);
-                debug('Error details: ' + JSON.stringify(errorData.error), true);
-                
-                if (errorData.error.code === 403) {
-                    updateStatus('API Key Error: Check your key or quota', 'error');
-                } else if (errorData.error.code === 400) {
-                    updateStatus('Invalid request', 'error');
-                } else {
-                    updateStatus('API Error: ' + errorData.error.message, 'error');
-                }
+                updateStatus('API Error: ' + errorData.error.message, 'error');
             } else {
                 debug('❌ HTTP Error: ' + response.status, true);
                 updateStatus('Search failed: ' + response.status, 'error');
             }
             return null;
         }
-        
+
         const data = await response.json();
         debug('✓ SUCCESS: Found ' + data.items.length + ' results');
 
@@ -339,12 +326,11 @@ async function searchYouTubeMusic(query, pageToken=null) {
             prevPageToken: data.prevPageToken
         };
     } catch (err) {
-        console.error('Search error:', err);
         debug('❌ EXCEPTION: ' + err.message, true);
         updateStatus('Search error: ' + err.message, 'error');
         return null;
     }
-}
+    }
 
 function displaySearchResults(tracks) {
 currentResults = tracks.slice(0, 10);
