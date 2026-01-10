@@ -103,6 +103,11 @@
 
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
+    const workerUrl = "https://ytmusic-proxy.pages.dev";
+
+fetch(`${workerUrl}/yt/v3/search?part=snippet&q=lofi&type=video`)
+  .then(res => res.json())
+  .then(data => console.log(data));
 let currentResults = [];
 let currentIndex = -1;
 // ⭐ PASTE YOUR YOUTUBE API KEY HERE ⭐
