@@ -103,7 +103,7 @@
 
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
-    const workerUrl = "https://ytmusic-proxy.pages.dev";
+    const workerUrl = "https://ytmusic-server.netlify.app/.netlify/functions/ytmusic-proxy";
 
 fetch(`${workerUrl}/yt/v3/search?part=snippet&q=lofi&type=video`)
   .then(res => res.json())
@@ -113,7 +113,6 @@ let currentIndex = -1;
 // ⭐ PASTE YOUR YOUTUBE API KEY HERE ⭐
 // Get your key from: https://console.cloud.google.com/apis/credentials
 // Make sure YouTube Data API v3 is enabled!
-const API_KEY = 'AIzaSyD8PZ4tMAHrH29QK00ywuOVEwU8K5_fYHA';
 
 let currentTrackId = null;
 let nextPageToken = null;
@@ -559,13 +558,54 @@ function formatTime(seconds) {
     return `${mins}:${secs.toString().padStart(2,'0')}`;
 }
 
-// Search functionality
-async function performSearch(query, pageToken=null) {
+// Search function that calls your Netlify proxy
+async function searchYouTubeMusic(query, pageToken = null) {
+    try {
+        updateStatus('Searching...', 'warning');
+        debug('🔍 Searching YouTube for: "' + query + '"');
+
+        const params = new URLSearchParams({ q: query + ' music' });
+        if (pageToken) params.append('pageToken', pageToken);
+
+        const url = `${workerUrl}?${params}`;
+        debug('📡 Fetching from Netlify proxy: ' + url);
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            debug('❌ HTTP Error: ' + response.status + (errorData?.error ? ' - ' + errorData.error : ''), true);
+            updateStatus('Search failed: ' + response.status, 'error');
+            return null;
+        }
+
+        const data = await response.json();
+        debug('✓ SUCCESS: Found ' + data.items.length + ' results');
+
+        return {
+            tracks: data.items.map(item => ({
+                id: item.id.videoId,
+                title: item.snippet.title,
+                artist: item.snippet.channelTitle,
+                thumbnail: item.snippet.thumbnails.default.url
+            })),
+            nextPageToken: data.nextPageToken,
+            prevPageToken: data.prevPageToken
+        };
+    } catch (err) {
+        debug('❌ EXCEPTION: ' + err.message, true);
+        updateStatus('Search error: ' + err.message, 'error');
+        return null;
+    }
+}
+
+// Perform search and display results
+async function performSearch(query, pageToken = null) {
     if (!query) { 
         updateStatus('Please enter a search query', 'warning'); 
         debug('⚠ Empty search query');
         return; 
     }
+
     const results = await searchYouTubeMusic(query, pageToken);
     if (results) {
         displaySearchResults(results.tracks);
@@ -575,8 +615,7 @@ async function performSearch(query, pageToken=null) {
         prevButton.disabled = !prevPageToken;
         updateStatus(`Found ${results.tracks.length} tracks`, 'success');
     }
-}
-
+    }
 // Event listeners
 searchButton.addEventListener('click', () => { 
     lastSearchQuery = searchInput.value.trim(); 
