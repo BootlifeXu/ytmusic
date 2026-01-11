@@ -595,21 +595,50 @@ async function searchYouTubeMusic(query, pageToken = null) {
 }
 
 // Perform search and display results
-async function performSearch(query, pageToken = null) {
-    if (!query) { 
-        updateStatus('Please enter a search query', 'warning'); 
-        debug('⚠ Empty search query');
-        return; 
-    }
+async function searchYouTubeMusic(query, pageToken = null) {
+    try {
+        updateStatus('Searching...', 'warning');
+        debug('🔍 Searching YouTube for: "' + query + '"');
 
-    const results = await searchYouTubeMusic(query, pageToken);
-    if (results) {
-        displaySearchResults(results.tracks);
-        nextPageToken = results.nextPageToken;
-        prevPageToken = results.prevPageToken;
-        nextButton.disabled = !nextPageToken;
-        prevButton.disabled = !prevPageToken;
-        updateStatus(`Found ${results.tracks.length} tracks`, 'success');
+        const params = new URLSearchParams({ q: query + ' music' });
+        if (pageToken) params.append('pageToken', pageToken);
+
+        const url = `${workerUrl}?${params}`;
+        debug('📡 Fetching from Netlify proxy: ' + url);
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+
+            // ✅ QUOTA LOGGING
+            if (errorData?.error?.errors?.some(e => e.reason === 'quotaExceeded')) {
+                debug('❌ ERROR: YouTube API quota exceeded! Cannot make more requests today.', true);
+                updateStatus('⚠️ YouTube API quota exceeded. Try again tomorrow.', 'error');
+            } else {
+                debug('❌ HTTP Error: ' + response.status + (errorData?.error ? ' - ' + errorData.error.message : ''), true);
+                updateStatus('Search failed: ' + response.status, 'error');
+            }
+
+            return null;
+        }
+
+        const data = await response.json();
+        debug('✓ SUCCESS: Found ' + data.items.length + ' results');
+
+        return {
+            tracks: data.items.map(item => ({
+                id: item.id.videoId,
+                title: item.snippet.title,
+                artist: item.snippet.channelTitle,
+                thumbnail: item.snippet.thumbnails.default.url
+            })),
+            nextPageToken: data.nextPageToken,
+            prevPageToken: data.prevPageToken
+        };
+    } catch (err) {
+        debug('❌ EXCEPTION: ' + err.message, true);
+        updateStatus('Search error: ' + err.message, 'error');
+        return null;
     }
     }
 // Event listeners
