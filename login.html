@@ -50,30 +50,36 @@
     <button onclick="login()">Login</button>
     <p id="message" style="color:red;font-size:14px;"></p>
   </div>
+<script>
+async function login() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
 
-  <script>
-  function login() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
+  document.getElementById('message').innerText = "Checking...";
 
-    // Replace these with your "allowed" credentials
-    const validUser = "jerome";
-    const validPass = "1234";
+  try {
+    const res = await fetch('/.netlify/functions/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
 
-    if(username === validUser && password === validPass) {
-      // Set login flag in localStorage
+    const data = await res.json();
+
+    if (data.success) {
       localStorage.setItem('loggedIn', 'true');
-      // Redirect to dashboard (index.html)
       window.location.href = "index.html";
     } else {
       document.getElementById('message').innerText = "Invalid credentials!";
     }
+  } catch (err) {
+    document.getElementById('message').innerText = "Server error. Try again.";
   }
+}
 
-  // Auto-redirect if already logged in
-  if(localStorage.getItem('loggedIn') === 'true') {
-    window.location.href = "index.html";
-  }
+// Auto-redirect if already logged in
+if (localStorage.getItem('loggedIn') === 'true') {
+  window.location.href = "index.html";
+}
 </script>
 </body>
 </html>
