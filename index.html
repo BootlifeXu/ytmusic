@@ -110,10 +110,6 @@ fetch(`${workerUrl}/yt/v3/search?part=snippet&q=lofi&type=video`)
   .then(data => console.log(data));
 let currentResults = [];
 let currentIndex = -1;
-// ⭐ PASTE YOUR YOUTUBE API KEY HERE ⭐
-// Get your key from: https://console.cloud.google.com/apis/credentials
-// Make sure YouTube Data API v3 is enabled!
-
 let currentTrackId = null;
 let nextPageToken = null;
 let prevPageToken = null;
@@ -666,13 +662,36 @@ window.addEventListener('load', () => {
 window.addToFavorites = addToFavorites;
 window.removeFromFavorites = removeFromFavorites;
     
-  if(localStorage.getItem('loggedIn') !== 'true') {
-        // Not logged in, redirect immediately
-        window.location.href = "login.html";
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<script>
+  // Initialize Netlify Identity
+  if (window.netlifyIdentity) {
+    netlifyIdentity.init();
+  }
+
+  // Check if user is logged in
+  function checkLogin() {
+    const user = netlifyIdentity.currentUser();
+    if (!user) {
+      // Not logged in → redirect to login page
+      window.location.href = "login.html";
     } else {
-        // Logged in: show the page
-        document.body.style.display = "block";
+      // Logged in → show the page
+      document.body.style.display = "block";
+      console.log("✅ Logged in as:", user.email);
     }
+  }
+
+  // Wait for Netlify Identity to be ready
+  netlifyIdentity.on("init", checkLogin);
+  netlifyIdentity.on("login", checkLogin);
+  netlifyIdentity.on("logout", () => {
+    window.location.href = "login.html";
+  });
+
+  // Hide page initially until login check
+  document.body.style.display = "none";
+</script>
   </script>
 </body>
 </html>
