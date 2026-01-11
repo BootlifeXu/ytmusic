@@ -662,25 +662,11 @@ window.addEventListener('load', () => {
 window.addToFavorites = addToFavorites;
 window.removeFromFavorites = removeFromFavorites;
     
-  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-<script>
-  // Initialize Netlify Identity
-  if (window.netlifyIdentity) {
-    netlifyIdentity.init();
-  }
-
-  // Check if user is logged in
-  function checkLogin() {
-    const user = netlifyIdentity.currentUser();
-    if (!user) {
-      // Not logged in → redirect to login page
-      window.location.href = "login.html";
-    } else {
-      // Logged in → show the page
-      document.body.style.display = "block";
-      console.log("✅ Logged in as:", user.email);
+  if(localStorage.getItem('loggedIn') !== 'true') {
+    window.location.href = "login.html";
+} else {
+    document.body.style.display = "block";
     }
-  }
 
   // Wait for Netlify Identity to be ready
   netlifyIdentity.on("init", checkLogin);
