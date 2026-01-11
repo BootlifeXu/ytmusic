@@ -1,68 +1,55 @@
 export async function handler(event) {
-  const q = event.queryStringParameters.q;
-  const pageToken = event.queryStringParameters.pageToken || "";
+  try {
+    const q = event.queryStringParameters?.q;
+    if (!q) return respond(400, { error: "Missing query parameter q" });
 
-  if (!q) {
-    return {
-      statusCode: 400,
-      headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ error: 'Missing query parameter "q"' })
-    };
-  }
+    const keys = [
+      process.env.YT_KEY_1,
+      process.env.YT_KEY_2
+    ].filter(Boolean);
 
-  const keys = (process.env.YT_KEYS || "").split(",").filter(Boolean);
-
-  if (!keys.length) {
-    return {
-      statusCode: 500,
-      headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ error: "YT_KEYS not set in environment variables" })
-    };
-  }
-
-  let lastError = null;
-
-  for (const apiKey of keys) {
-    const url = new URL("https://www.googleapis.com/youtube/v3/search");
-    url.searchParams.set("part", "snippet");
-    url.searchParams.set("q", q + " music");
-    url.searchParams.set("type", "video");
-    url.searchParams.set("videoCategoryId", "10");
-    url.searchParams.set("maxResults", "10");
-    if (pageToken) url.searchParams.set("pageToken", pageToken);
-    url.searchParams.set("key", apiKey);
-
-    try {
-      const res = await fetch(url.toString());
-      const data = await res.text();
-
-      // If quota exceeded, try next key
-      if (res.status === 403 && data.includes("quota")) {
-        lastError = data;
-        continue;
-      }
-
-      return {
-        statusCode: res.status,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Content-Type": "application/json"
-        },
-        body: data
-      };
-
-    } catch (err) {
-      lastError = err.message;
+    if (!keys.length) {
+      return respond(500, { error: "No API keys set in environment variables" });
     }
-  }
 
-  // All keys failed
+    let lastError = null;
+
+    for (const key of keys) {
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${key}`;
+      
+      try {
+        const res = await fetch(url);
+        const data = await res.text();
+
+        if (res.ok) return respond(200, data, true);
+
+        // If quota exceeded, try next key
+        if (res.status === 403 && data.includes("quota")) {
+          lastError = data;
+          continue;
+        }
+
+        return respond(res.status, data, true);
+
+      } catch (err) {
+        lastError = err.message;
+      }
+    }
+
+    return respond(500, { error: "All API keys exhausted", details: lastError });
+
+  } catch (err) {
+    return respond(500, { crash: err.message });
+  }
+}
+
+function respond(status, body, raw = false) {
   return {
-    statusCode: 403,
+    statusCode: status,
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ error: "All API keys exhausted", details: lastError })
+    body: raw ? body : JSON.stringify(body)
   };
-      }
+}
